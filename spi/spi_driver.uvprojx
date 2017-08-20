@@ -475,6 +475,11 @@
               <FileType>1</FileType>
               <FilePath>.\spi_master.c</FilePath>
             </File>
+            <File>
+              <FileName>spi_slave.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\spi_slave.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
