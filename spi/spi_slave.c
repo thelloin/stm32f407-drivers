@@ -62,7 +62,7 @@ static uint16_t Buffercmp(uint8_t *pBuffer1, uint8_t *pBuffer2, uint16_t BufferL
 }
 int main(void)
 {
-	uint16_t ack_bytes = SPI_ACK_BYTES;
+	//uint16_t ack_bytes = SPI_ACK_BYTES;
 	uint8_t rcv_cmd[2];
 	uint8_t ack_buf[2] = {0xD5, 0xE5};
 	uint16_t master_cmd;
@@ -124,5 +124,48 @@ int main(void)
 			led_toggle(GPIOD, LED_RED);
 		}
 		
+		/* Is it a write command from master? */
+		if (master_cmd == CMD_MASTER_WRITE)
+		{
+			/* Master want to write, so get ready to receive the data */
+			hal_spi_slave_rx(&SpiHandle, slave_rx_buffer, DATA_LENGTH);
+			
+			/* Wait until received data with the expected data */
+			while (SpiHandle.State != HAL_SPI_STATE_READY);
+			
+			/* Compare the received data with the expected data */
+			if (Buffercmp(master_write_data, slave_rx_buffer, DATA_LENGTH))
+			{
+				/* Doesn't match, Error! */
+				led_toggle(GPIOD, LED_RED);
+			} else
+			{
+				/* matches, toggle the blue LED */
+				led_toggle(GPIOD, LED_BLUE);
+			}
+		}
+		
+		/* or, is it a read command from master? */
+		if (master_cmd == CMD_MASTER_READ)
+		{
+			/* master wants to read, so transmit data to master */
+			hal_spi_slave_tx(&SpiHandle, slave_tx_buffer, DATA_LENGTH);
+			
+			/* hang on, until the TXing finishes */
+			while (SpiHandle.State != HAL_SPI_STATE_READY);
+		}
+		
 	}
+	return 0;
+}
+
+/**
+  * @brief  This function handles SPI2 interrupt requests.
+  * @param  None
+  * @retval None
+  */
+void SPI2_IRQHandler(void)
+{
+	/* call the driver api to process this interrupt */
+	hal_spi_irq_handler(&SpiHandle);
 }
