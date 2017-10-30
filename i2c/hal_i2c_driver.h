@@ -38,7 +38,7 @@
 #define I2C_ENABLE_CLK_STRETCH          0
 #define I2C_DISABLE_CLK_STRETCH         1
 
-#define I2C_REG_CR1_ENABLE_I2C         ((uint32_t) << 0)
+#define I2C_REG_CR1_ENABLE_I2C         ((uint32_t)1 << 0)
 
 /******************  Bit definition for I2C_CR2 register  ****************/
 #define I2C_REG_CR2_BUF_INT_ENABLE     ((uint32_t) (1 << 10))
@@ -125,17 +125,153 @@ typedef enum
 /**
   * @brief I2C Configuration Structure definition
   */
-typedef enum
+typedef struct
 {
-	uint32_t ClockSpeed;
-	uint32_t DutyCycle;
-	uint32_t OwnAddress;
-	uint32_t AddressingMode;
-	uint32_t DualAddressMode;
-	uint32_t OwnAddress2;
-	uint32_t GeneralCallMode;
-	uint32_t NoStretchMode;
-	uint32_t ack_enable;
+	uint32_t ClockSpeed;       /* Specifies the clock frequency.
+                                This parameter must be set to a lower lower than 400kHz	*/
+	
+	uint32_t DutyCycle;        /* Specifies the I2C fast mode duty cycle.
+	                              This parameter can be a value of @ref I2C_duty_cycle_in_fast_mode */
+	
+	uint32_t OwnAddress;       /* Specifies the first device own address.
+	                              This parameter can be a 7-bit or 10-bit address. */
+	
+	uint32_t AddressingMode;   /* Specifies if 7-bit or 10-bit addressing mode is selected.
+	                              This parameter can be a value of @ref I2C_addressing mode */
+	
+	uint32_t DualAddressMode;  /* Specifies if dual addressing mode is selected.
+	                              This parameter can be a value of @ref I2C_dual_addressing_mode */
+	
+	uint32_t OwnAddress2;      /* Specifies the second device own address if dual addressing mode is selected. 
+	                              This parameter can be a 7-bit address */
+	
+	uint32_t GeneralCallMode;  /* Specifies if general call mode is selected. 
+	                              This paramter can be a value of @ref I2C_general_call_addressing_mode */
+	
+	uint32_t NoStretchMode;    /* Specifies if nostretch mode is selected.
+                                This paramter can be a value of @ref I2C_nostretch_mode	*/
+	uint32_t ack_enable;       /* Specifies if ACK is enabled or disabled */
+	
 	uint32_t master;
 	
-};
+} i2c_init_t;
+
+
+/**
+  * @brief I2C handle Structure definition
+  */
+
+typedef struct
+{
+	I2C_TypeDef             *Instance;    /*!< I2C register base address      */
+	
+	i2c_init_t               Init;        /*!< I2C communication parameters   */
+	
+	uint8_t                 *pBuffPtr;    /*!< Pointer to I2C transfer buffer */
+	
+	uint32_t                 XferSize;    /*!< I2C transfer size              */
+	
+	__IO uint32_t            XferCount;   /*!< I2C transfer counter           */
+	
+	hal_i2c_state_t          State;       /*!< I2C communication state        */
+	
+	uint32_t                 Errorcode;   /*!< Holds I2C error code status    */
+	
+} i2c_handle_t;
+
+#define  RESET 0
+#define  SET   !RESET
+
+/*
+Sm mode of SMBus:
+Thigh = CCR * TPCLK1
+Tlow = CCR * TPCLK1
+TPCLK! = 1/FREQ
+Thigh = (1/sm_mode_freq) / 2
+so calculate CCR
+*/
+
+
+/**
+  * @brief HAL Status structure definition
+  */
+typedef enum
+{
+	HAL_OK       = 0x00,
+	HAL_ERROR    = 0x01,
+	HAL_BUSY     = 0x02,
+	HAL_TIMEOUT  = 0x03
+} HAL_StatusTypeDef;
+
+#define UNUSED(x)  ((void) (x))
+
+/*************************************************************************/
+/*                                                                       */
+/*                         Driver exposed APIs                           */
+/*                                                                       */
+/*************************************************************************/
+
+/**
+  * @brief  Initializes the given I2C Peripheral
+  * @param  *handle : Handle to the I2C Peripheral, which the application wants to initialize
+  * @retval None
+  */
+void hal_i2c_init(i2c_handle_t *handle);
+
+void hal_i2c_manage_ack(I2C_TypeDef *i2cx, uint32_t ack_noack);
+
+/**
+  * @brief  API to do master data transmission
+  * @param  *handle : pointer to the handle structure of the I2C Peripheral
+  * @param  slave_address : addres to which we want to tx
+  * @param  *buffer : holds the pointer to the tx buffer
+  * @param  len : length of the data to be TXed
+  * @retval None
+  */
+void hal_i2c_master_tx(i2c_handle_t *handle, uint8_t slave_address, uint8_t *buffer, uint32_t len);
+
+/**
+  * @brief  API to do master data reception
+  * @param  *handle : pointer to the handle structure of the I2C Peripheral
+  * @param  slave_address : address to who sends the data
+  * @param  *buffer : holds the pointer to the RX buffer
+  * @param  len : length of the data to be RXed
+  * @retval None
+  */
+void hal_i2c_master_rx(i2c_handle_t *handle, uint8_t slave_address, uint8_t *buffer, uint32_t len);
+
+/**
+  * @brief  API to do slave data transmission
+  * @param  *handle : pointer to the handle structure of the I2C Peripheral
+  * @param  *buffer : holds the pointer to the tx buffer
+  * @param  len : length of the data to be TXed
+  * @retval None
+  */
+void hal_i2c_slave_tx(i2c_handle_t *handle, uint8_t *buffer, uint32_t len);
+
+/**
+  * @brief  API to do slave data reception
+  * @param  *handle : pointer to the handle structure of the I2C Peripheral
+  * @param  *buffer : holds the pointer to the RX buffer
+  * @param  len : length of the data to be RXed
+  * @retval None
+	*/
+void hal_i2c_slave_rx(i2c_handle_t *handle, uint8_t *buffer, uint32_t len);
+
+/**
+  * @brief  This function handles I2C error interrupt request
+  * @param  hi2c : pointer to a i2c_handle_t structure that contains
+                   the configuration information for I2C module
+  * @retval None
+  */
+void HAL_I2C_EV_IRQHandler(i2c_handle_t *hi2c);
+
+/**
+  * @brief  This function handles I2C event interrupt request
+  * @param  hi2c : pointer to a i2c_handle_t structure that contains
+  *                the configuration information for I2C module
+  * @retval None
+  */
+void HAL_I2C_ER_IRQHandler(i2c_handle_t *hi2c);
+
+#endif
